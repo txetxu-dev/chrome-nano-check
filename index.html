@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Chrome Nano Check</title>
+  <style>
+    :root{color-scheme:dark;font-family:system-ui,sans-serif;background:#0f172a;color:#e5e7eb}
+    body{max-width:980px;margin:0 auto;padding:30px 20px;line-height:1.5}
+    h1{margin:0 0 8px;font-size:clamp(1.7rem,4vw,2.5rem)}
+    h2{margin-top:0}.intro{color:#c4b5fd;margin-top:0}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
+    .card{background:#1e293b;border:1px solid #334155;border-radius:14px;padding:20px;margin-top:20px}
+    .status{white-space:pre-wrap;color:#cbd5e1}.checks{display:grid;gap:10px;margin-top:14px}
+    .check{padding:11px 13px;background:#0f172a;border-radius:9px;border-left:4px solid #64748b}
+    .check.ok{border-left-color:#34d399}.check.warn{border-left-color:#fbbf24}.check.fail{border-left-color:#fb7185}
+    .check strong{display:block}.muted{color:#94a3b8;font-size:.92rem}
+    textarea{width:100%;min-height:130px;box-sizing:border-box;background:#0f172a;color:#f8fafc;border:1px solid #475569;border-radius:10px;padding:13px;font:inherit;resize:vertical}
+    button{background:#6366f1;color:white;border:0;border-radius:9px;padding:11px 16px;font:inherit;font-weight:700;cursor:pointer;margin:10px 8px 0 0}
+    button.secondary{background:#475569}button:disabled{opacity:.55;cursor:wait}
+    pre{white-space:pre-wrap;background:#020617;border-radius:10px;padding:15px;min-height:70px;overflow:auto}
+    code{background:#0f172a;padding:2px 5px;border-radius:4px}
+    @media (max-width:600px){body{padding:22px 14px}}
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Chrome Nano Check</h1>
+    <p class="intro">Comprueba si este Chrome ya puede usar el modelo local. Esta página no instala ni descarga nada.</p>
+
+    <section class="card">
+      <h2>Diagnóstico</h2>
+      <div id="checks" class="checks" aria-live="polite">
+        <div class="check"><strong>Aún no comprobado</strong><span>Ejecuta el diagnóstico.</span></div>
+      </div>
+      <button id="check">Comprobar disponibilidad</button>
+      <p class="muted">La comprobación solo consulta la API. La prueba de inferencia se habilita únicamente si Chrome informa de que el modelo está disponible.</p>
+    </section>
+
+    <section class="grid">
+      <div class="card">
+        <h2>Prueba opcional</h2>
+        <label for="input">Texto breve</label>
+        <textarea id="input">La reunión de revisión será el 30 de octubre. Hay que confirmar la asistencia antes del viernes.</textarea>
+        <button id="run" disabled>Ejecutar prueba local</button>
+        <button id="clear" class="secondary">Limpiar</button>
+      </div>
+      <div class="card">
+        <h2>Resultado</h2>
+        <pre id="output">Todavía no hay resultado.</pre>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Casos de uso orientativos</h2>
+      <ul>
+        <li>Clasificar textos breves.</li>
+        <li>Resumir un correo o una nota.</li>
+        <li>Extraer acciones y fechas.</li>
+        <li>Reformular o simplificar un texto.</li>
+      </ul>
+      <p class="muted">La respuesta es una sugerencia: puede contener errores y debe revisarse.</p>
+    </section>
+  </main>
+  <script>
+    const checks = document.querySelector('#checks');
+    const checkButton = document.querySelector('#check');
+    const runButton = document.querySelector('#run');
+    const clearButton = document.querySelector('#clear');
+    const input = document.querySelector('#input');
+    const output = document.querySelector('#output');
+
+    function addCheck(title, detail, kind) {
+      const node = document.createElement('div');
+      node.className = `check ${kind || ''}`;
+      node.innerHTML = `<strong>${title}</strong><span>${detail}</span>`;
+      checks.append(node);
+    }
+
+    checkButton.addEventListener('click', async () => {
+      checkButton.disabled = true;
+      runButton.disabled = true;
+      checks.replaceChildren();
+      try {
+        const exists = 'LanguageModel' in globalThis;
+        addCheck('API LanguageModel', exists ? 'Existe en este origen.' : 'No existe en este Chrome/origen.', exists ? 'ok' : 'fail');
+        if (!exists) throw new Error('La API LanguageModel no está disponible.');
+
+        const availability = await LanguageModel.availability();
+        const text = {
+          available: 'El modelo ya está accesible. No se inicia ninguna descarga.',
+          downloadable: 'Chrome indica que podría descargarlo, pero esta página no inicia la descarga.',
+          downloading: 'Chrome indica que el modelo se está descargando. Esta página no interviene.',
+          unavailable: 'El modelo no está disponible en este entorno.'
+        }[availability] || `Estado no reconocido: ${availability}`;
+        addCheck(`Estado: ${availability}`, text, availability === 'available' ? 'ok' : availability === 'unavailable' ? 'fail' : 'warn');
+        if (availability === 'available') {
+          runButton.disabled = false;
+          output.textContent = 'Listo: puedes ejecutar la prueba local.';
+        } else {
+          output.textContent = 'La prueba de inferencia queda desactivada porque el modelo no está disponible.';
+        }
+      } catch (error) {
+        addCheck('Diagnóstico interrumpido', error.message || String(error), 'fail');
+        output.textContent = 'No se pudo completar el diagnóstico.';
+      } finally {
+        checkButton.disabled = false;
+      }
+    });
+
+    runButton.addEventListener('click', async () => {
+      runButton.disabled = true;
+      output.textContent = 'Procesando localmente…';
+      try {
+        const session = await LanguageModel.create({
+          initialPrompts: [{role: 'system', content: 'Responde en español. Resume brevemente el texto y extrae acciones y fechas. No inventes datos.'}]
+        });
+        const answer = await session.prompt(`Analiza este texto con estas secciones: RESUMEN, ACCIONES, FECHAS.\n\n${input.value}`);
+        output.textContent = answer;
+        session.destroy();
+      } catch (error) {
+        output.textContent = `La prueba falló.\n\n${error.message || error}`;
+      } finally {
+        runButton.disabled = false;
+      }
+    });
+
+    clearButton.addEventListener('click', () => { output.textContent = 'Todavía no hay resultado.'; });
+  </script>
+</body>
+</html>

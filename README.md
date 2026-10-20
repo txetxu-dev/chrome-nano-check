@@ -4,6 +4,93 @@ Prueba local y portable para comprobar si un Chrome ya tiene accesible su modelo
 
 > Este proyecto no es un instalador del modelo. No empaqueta, copia ni fuerza la descarga de Gemini Nano.
 
+## Guía rápida
+
+Esta es la ruta mínima para probarlo desde cero.
+
+### 1. Requisitos
+
+Necesitas:
+
+- Google Chrome actualizado;
+- Git para descargar el repositorio;
+- Python 3 para servir la página localmente.
+
+Puedes comprobar si Python está instalado con:
+
+```bash
+python3 --version
+```
+
+En Windows, prueba:
+
+```powershell
+py --version
+```
+
+### 2. Descargar la prueba
+
+Abre una terminal y ejecuta:
+
+```bash
+git clone https://github.com/txetxu-dev/chrome-nano-check.git
+cd chrome-nano-check
+```
+
+### 3. Iniciar el servidor local
+
+En Linux o macOS:
+
+```bash
+./start.sh
+```
+
+Si aparece un error de permisos, puedes ejecutarlo mediante Bash:
+
+```bash
+bash start.sh
+```
+
+También puedes iniciar el servidor directamente:
+
+```bash
+python3 -m http.server 8796 --bind 127.0.0.1
+```
+
+En Windows PowerShell:
+
+```powershell
+py -m http.server 8796 --bind 127.0.0.1
+```
+
+El servidor debe permanecer abierto mientras haces la prueba.
+
+### 4. Abrir la página en Chrome
+
+En el mismo equipo donde has iniciado el servidor, abre esta dirección en Google Chrome:
+
+```text
+http://127.0.0.1:8796/
+```
+
+`127.0.0.1` siempre significa “este equipo”. Si ejecutas el servidor en otro ordenador, debes abrir la página desde el Chrome de ese otro ordenador; no prueba remotamente el modelo del servidor.
+
+### 5. Ejecutar la comprobación
+
+1. Pulsa **Comprobar disponibilidad**.
+2. Si aparece el estado `available`, pulsa **Ejecutar prueba local**.
+3. Si aparece otro estado, consulta la sección [Interpretación de estados](#interpretación-de-estados).
+
+La prueba usa inicialmente un texto de ejemplo. Puedes sustituirlo por otro texto breve, preferiblemente sin datos sensibles.
+
+### 6. Detener el servidor
+
+Cuando termines, vuelve a la terminal donde está funcionando y pulsa:
+
+```text
+Ctrl+C
+```
+
 ## Qué comprueba
 
 La página separa tres niveles:
